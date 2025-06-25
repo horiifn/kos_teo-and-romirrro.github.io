@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FormsClone</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Bangers&family=Fredoka:wght@400;500;700&display=swap');
+        :root {
+            --bg-main: #fffaf0;
+            --surface-color: #ffffff;
+            --text-color: #333;
+            --primary-color: #ff9800;
+            --secondary-color: #ffc107;
+            --accent-color: #ff4757;
+            --border-color: #1c1c1c;
+            --status-approved: #2ed573;
+            --status-denied: #ff4757;
+            --status-pending: #a4b0be;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Fredoka', sans-serif; background-color: var(--bg-main); color: var(--text-color);
+            overflow-x: hidden;
+            -webkit-user-select: none; -moz-user-select: none; -ms-user-select: none; user-select: none;
+        }
+        input, select, textarea { -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; user-select: text; }
+        .container { max-width: 900px; margin: 0 auto; padding: 20px; }
+        .hidden { display: none !important; }
+
+        /* --- Login Overlay --- */
+        .auth-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 2000;
+        }
+        .auth-box {
+            background: var(--surface-color); padding: 40px; border-radius: 20px; width: 90%; max-width: 400px;
+            text-align: center; border: 3px solid var(--border-color); box-shadow: 8px 8px 0 var(--border-color);
+        }
+        .auth-box h2 {
+            font-family: 'Bangers', cursive; font-size: 50px; letter-spacing: 2px; color: var(--primary-color);
+            text-shadow: 2px 2px 0 var(--border-color); margin-bottom: 20px;
+        }
+        
+        .btn {
+            font-family: 'Bangers', cursive; font-size: 20px; letter-spacing: 1px; padding: 10px 25px;
+            border: 3px solid var(--border-color); border-radius: 12px; cursor: pointer; color: var(--border-color);
+            background-color: var(--secondary-color); box-shadow: 5px 5px 0 var(--border-color);
+            transition: all 0.1s ease-in-out;
+            text-decoration: none; display: inline-block;
+        }
+        .btn:hover { transform: translate(2px, 2px); box-shadow: 3px 3px 0 var(--border-color); }
+        .btn:active { transform: translate(5px, 5px); box-shadow: 0px 0px 0 var(--border-color); }
+        .btn-small { font-size: 14px; padding: 5px 10px; box-shadow: 3px 3px 0 var(--border-color); }
+        .btn-small:hover { transform: translate(1px, 1px); box-shadow: 2px 2px 0 var(--border-color); }
+        .btn-small:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--border-color); }
+        .btn-primary { background-color: var(--primary-color); color: white; }
+        .btn-danger { background-color: var(--accent-color); color: white; }
+        .btn-success { background-color: var(--status-approved); color: white; }
+
+        header {
+            padding: 15px 40px; display: flex; justify-content: space-between; align-items: center;
+            background: var(--surface-color); border-bottom: 3px solid var(--border-color);
+            position: sticky; top: 0; z-index: 100; flex-wrap: wrap; gap: 20px;
+        }
+        header h1 {
+            font-family: 'Bangers', cursive; font-size: 40px; letter-spacing: 2px;
+            color: var(--primary-color); text-shadow: 2px 2px 0 var(--border-color);
+            cursor: pointer;
+        }
+        .header-controls { display: flex; align-items: center; gap: 15px; flex-wrap: wrap; }
+        .page { display: none; }
+        .page.active { display: block; animation: fadeIn 0.5s; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .page-header { text-align: center; margin-bottom: 40px; }
+        h2.page-title {
+            font-family: 'Bangers', cursive; font-size: 60px;
+            color: var(--primary-color); text-shadow: 3px 3px 0 var(--border-color); margin-bottom: 15px;
+        }
+
+        .form-section { background: var(--surface-color); padding: 25px; border-radius: 16px; margin-bottom: 30px; border: 3px solid var(--border-color); }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 7px; font-weight: 500; font-size: 18px; }
+        .form-control { width: 100%; padding: 12px; background-color: var(--bg-main); border: 2px solid var(--border-color); border-radius: 8px; font-size: 16px; font-family: 'Fredoka', sans-serif; }
+        textarea.form-control { min-height: 100px; resize: vertical; }
+        
+        #questions-container { display: flex; flex-direction: column; gap: 25px; }
+        .question-editor-card { background: var(--bg-main); padding: 20px; border-radius: 12px; border: 2px dashed var(--border-color); }
+        .question-editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .question-options-container { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; padding-left: 20px; }
+        .question-option { display: flex; align-items: center; gap: 10px; }
+        
+        #forms-list-container { display: flex; flex-direction: column; gap: 15px; }
+        .form-list-item { background-color: var(--surface-color); padding: 20px; border-radius: 12px; border: 2px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;}
+        .form-list-item h4 { font-size: 22px; font-weight: 500; }
+        .form-list-item .controls { display: flex; gap: 10px; flex-wrap: wrap;}
+
+        #form-display-container .form-section { border-style: solid; }
+        #form-display-container h2 { font-size: 40px; margin-bottom: 5px; font-family: 'Fredoka', sans-serif; font-weight: 700; }
+        #form-display-container p { font-size: 18px; color: #555; margin-bottom: 30px; }
+        .form-question { margin-bottom: 25px; }
+        .form-question label { font-size: 20px; font-weight: 700; margin-bottom: 10px; }
+        .form-question .options-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-question .option-item { display: flex; align-items: center; gap: 12px; }
+        .form-question .option-item label { font-size: 16px; font-weight: 400; }
+
+        #responses-list { display: flex; flex-direction: column; gap: 20px; }
+        .response-card { background-color: var(--surface-color); padding: 20px; border-radius: 12px; border: 2px solid var(--border-color); }
+        .response-card-header { display: flex; justify-content: space-between; align-items: center; font-size: 14px; color: #777; border-bottom: 1px solid var(--bg-main); padding-bottom: 8px; margin-bottom: 12px; }
+        .response-answer { margin-bottom: 10px; }
+        .response-answer strong { display: block; margin-bottom: 4px; color: var(--text-color); }
+        .response-answer span { padding-left: 15px; font-size: 16px; color: #444; }
+        .response-status-badge { padding: 3px 8px; border-radius: 6px; color: white; font-weight: bold; font-size: 12px; }
+        .status-pending { background-color: var(--status-pending); }
+        .status-approved { background-color: var(--status-approved); }
+        .status-denied { background-color: var(--status-denied); }
+        .response-controls { display: flex; gap: 10px; margin-top: 15px; border-top: 1px solid var(--bg-main); padding-top: 15px; }
+
+        #notifications-list-container { display: flex; flex-direction: column; gap: 15px; }
+        .notification-item { background: var(--surface-color); border-left: 5px solid; padding: 15px; border-radius: 8px; border-top: 2px solid var(--border-color); border-right: 2px solid var(--border-color); border-bottom: 2px solid var(--border-color); }
+        .notification-item.is-read { opacity: 0.7; }
+        .notification-item.approved { border-left-color: var(--status-approved); }
+        .notification-item.denied { border-left-color: var(--status-denied); }
+        .notification-item p { margin: 0; font-size: 16px; }
+        .notification-item .timestamp { font-size: 12px; color: #777; margin-top: 5px; text-align: right; }
+
+        .notification-btn-wrapper { position: relative; }
+        #notification-badge { position: absolute; top: -5px; right: -8px; background-color: var(--accent-color); color: white; border-radius: 50%; width: 22px; height: 22px; font-size: 12px; display: flex; justify-content: center; align-items: center; font-weight: bold; border: 2px solid var(--border-color); }
+
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); backdrop-filter: blur(5px); display: flex; justify-content: center; align-items: center; z-index: 1000; }
+        .modal-content { background: var(--surface-color); padding: 30px; border-radius: 20px; width: 90%; max-width: 600px; text-align: center; border: 3px solid var(--border-color); box-shadow: 8px 8px 0 var(--border-color); position: relative; }
+        .modal-title { font-family: 'Bangers', cursive; font-size: 42px; letter-spacing: 1px; margin-bottom: 25px; }
+        .close-modal { position: absolute; top: 15px; right: 20px; font-size: 35px; font-weight: bold; cursor: pointer; color: var(--text-color); transition: transform 0.2s; }
+        .close-modal:hover { transform: scale(1.2) rotate(90deg); }
+        #share-link-input { width: 100%; padding: 10px; font-size: 16px; border: 2px solid var(--border-color); border-radius: 8px; text-align: center; background-color: var(--bg-main); margin-bottom: 15px; }
+
+        .creator-watermark { position: fixed; bottom: 10px; right: 15px; background-color: rgba(0, 0, 0, 0.7); color: white; padding: 5px 10px; border-radius: 5px; font-size: 12px; font-family: 'Fredoka', sans-serif; z-index: 3000; }
+    </style>
+</head>
+<body>
+    
+    <div id="login-overlay" class="auth-overlay">
+        <div class="auth-box">
+            <h2>Вход</h2>
+            <p style="margin-bottom:20px; font-size: 14px; color: #555;">Введите ваш ник на Twitch. Если вы администратор, введите свой логин.</p>
+            <form id="login-form">
+                <div class="form-group">
+                    <input type="text" id="login-nickname" class="form-control" required placeholder="Ваш Twitch ник...">
+                </div>
+                <div class="form-group hidden" id="password-group">
+                    <input type="password" id="login-password" class="form-control" placeholder="Пароль...">
+                </div>
+                <button type="submit" class="btn">Войти</button>
+            </form>
+            <p id="login-error-msg" style="color:var(--accent-color); margin-top:15px;"></p>
+        </div>
+    </div>
+    
+    <div id="app-content" class="hidden">
+        <header>
+            <h1 id="logo">FormsClone</h1>
+            <div class="header-controls">
+                <span id="user-greeting" style="font-weight: bold; font-size: 18px;"></span>
+                <button id="my-forms-nav-btn" class="btn hidden">Мои формы</button>
+                <div class="notification-btn-wrapper">
+                    <button id="notifications-nav-btn" class="btn">Уведомления</button>
+                    <span id="notification-badge" class="hidden">0</span>
+                </div>
+                <button id="create-form-nav-btn" class="btn btn-primary hidden">Создать форму</button>
+                <button id="logout-btn" class="btn btn-danger">Выйти</button>
+            </div>
+        </header>
+
+        <main class="container">
+            <div id="my-forms-page" class="page">
+                <div class="page-header"><h2 class="page-title">Мои Формы</h2></div>
+                <div id="forms-list-container"></div>
+            </div>
+
+            <div id="form-editor-page" class="page">
+                <div class="page-header"><h2 id="editor-title" class="page-title">Создание Формы</h2></div>
+                <div class="form-section">
+                    <input type="hidden" id="editing-form-id">
+                    <div class="form-group">
+                        <label for="form-title">Название формы</label>
+                        <input type="text" id="form-title" class="form-control" placeholder="Например: Заявка на модератора">
+                    </div>
+                    <div class="form-group">
+                        <label for="form-description">Описание</label>
+                        <textarea id="form-description" class="form-control" placeholder="Краткое описание или инструкция для заполняющих"></textarea>
+                    </div>
+                </div>
+                <div class="form-section">
+                    <h3>Вопросы</h3>
+                    <div id="questions-container"></div>
+                    <div class="form-group" style="margin-top: 20px; display: flex; gap: 15px; align-items: center;">
+                        <select id="question-type-select" class="form-control" style="width: auto;">
+                            <option value="short-text">Короткий ответ</option>
+                            <option value="paragraph">Развернутый ответ (абзац)</option>
+                            <option value="multiple-choice">Один из списка (radio)</option>
+                        </select>
+                        <button id="add-question-btn" class="btn">Добавить вопрос</button>
+                    </div>
+                </div>
+                <div style="text-align: center;"><button id="save-form-btn" class="btn btn-primary" style="font-size: 24px;">Сохранить форму</button></div>
+            </div>
+            
+            <div id="form-viewer-page" class="page">
+                 <div id="form-display-container"></div>
+                 <div id="form-thank-you-message" class="form-section hidden" style="text-align:center;">
+                    <h3>Спасибо!</h3>
+                    <p>Ваш ответ был записан. Ожидайте уведомления о решении по вашей заявке.</p>
+                 </div>
+            </div>
+
+            <div id="responses-viewer-page" class="page">
+                <div class="page-header"><h2 id="responses-form-title" class="page-title">Ответы</h2></div>
+                <div id="responses-list"></div>
+            </div>
+
+            <div id="notifications-page" class="page">
+                <div class="page-header"><h2 class="page-title">Ваши уведомления</h2></div>
+                <div id="notifications-list-container"></div>
+            </div>
+
+        </main>
+    </div>
+
+    <div id="share-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <span class="close-modal">×</span>
+            <h2 class="modal-title">Поделиться формой</h2>
+            <p style="margin-bottom: 20px;">Скопируйте эту ссылку и отправьте ее тем, кто должен заполнить форму.</p>
+            <input type="text" id="share-link-input" readonly>
+            <button id="copy-link-btn" class="btn">Копировать</button>
+        </div>
+    </div>
+    
+    <div class="creator-watermark">Adapted by horiifn</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const app = {
+        // --- UI Элементы ---
+        ui: {
+            loginOverlay: document.getElementById('login-overlay'),
+            appContent: document.getElementById('app-content'),
+            loginForm: document.getElementById('login-form'),
+            loginNickname: document.getElementById('login-nickname'),
+            passwordGroup: document.getElementById('password-group'),
+            loginPassword: document.getElementById('login-password'),
+            loginErrorMsg: document.getElementById('login-error-msg'),
+            userGreeting: document.getElementById('user-greeting'),
+            notificationBadge: document.getElementById('notification-badge'),
+            pages: {
+                myForms: document.getElementById('my-forms-page'),
+                formEditor: document.getElementById('form-editor-page'),
+                formViewer: document.getElementById('form-viewer-page'),
+                responsesViewer: document.getElementById('responses-viewer-page'),
+                notifications: document.getElementById('notifications-page'),
+            },
+            buttons: {
+                logo: document.getElementById('logo'),
+                myFormsNav: document.getElementById('my-forms-nav-btn'),
+                createFormNav: document.getElementById('create-form-nav-btn'),
+                notificationsNav: document.getElementById('notifications-nav-btn'),
+                logout: document.getElementById('logout-btn'),
+                addQuestion: document.getElementById('add-question-btn'),
+                saveForm: document.getElementById('save-form-btn'),
+                copyLink: document.getElementById('copy-link-btn'),
+            },
+            containers: {
+                formsList: document.getElementById('forms-list-container'),
+                questions: document.getElementById('questions-container'),
+                formDisplay: document.getElementById('form-display-container'),
+                responsesList: document.getElementById('responses-list'),
+                notificationsList: document.getElementById('notifications-list-container'),
+            },
+            inputs: {
+                editingFormId: document.getElementById('editing-form-id'),
+                formTitle: document.getElementById('form-title'),
+                formDescription: document.getElementById('form-description'),
+                questionType: document.getElementById('question-type-select'),
+                shareLink: document.getElementById('share-link-input'),
+            },
+            modals: {
+                share: document.getElementById('share-modal'),
+            },
+        },
+        
+        state: {
+            currentUser: null,
+            forms: [],
+            responses: [],
+            notifications: [],
+        },
+
+        init() {
+            this.loadData();
+            this.attachEventListeners();
+            
+            const savedUser = localStorage.getItem('formsCloneCurrentUser');
+            if (savedUser) {
+                this.state.currentUser = savedUser;
+                this.startApp();
+            } else {
+                this.ui.loginOverlay.classList.remove('hidden');
+            }
+        },
+
+        startApp() {
+            this.ui.loginOverlay.classList.add('hidden');
+            this.ui.appContent.classList.remove('hidden');
+            this.ui.userGreeting.textContent = `Привет, ${this.state.currentUser}!`;
+            this.updateUIForRole();
+            this.handleRouteChange();
+            window.addEventListener('hashchange', () => this.handleRouteChange());
+        },
+
+        loadData() {
+            const data = localStorage.getItem('formsCloneData');
+            if (data) {
+                const parsedData = JSON.parse(data);
+                this.state.forms = parsedData.forms || [];
+                this.state.responses = parsedData.responses || [];
+                this.state.notifications = parsedData.notifications || [];
+            }
+        },
+        saveData() {
+            localStorage.setItem('formsCloneData', JSON.stringify({
+                forms: this.state.forms,
+                responses: this.state.responses,
+                notifications: this.state.notifications
+            }));
+        },
+
+        handleRouteChange() {
+            Object.values(this.ui.pages).forEach(p => p.classList.remove('active'));
+            const hash = window.location.hash;
+
+            if (hash.startsWith('#view=')) {
+                this.renderFormViewer(hash.substring(6));
+                this.ui.pages.formViewer.classList.add('active');
+            } else if (hash.startsWith('#responses=')) {
+                if (this.isAdmin()) this.renderResponsesViewer(hash.substring(11));
+                else window.location.hash = '';
+                this.ui.pages.responsesViewer.classList.add('active');
+            } else if (hash === '#create' || hash.startsWith('#edit=')) {
+                if (this.isAdmin()) this.renderFormEditor(hash.startsWith('#edit=') ? hash.substring(6) : null);
+                else window.location.hash = '';
+                this.ui.pages.formEditor.classList.add('active');
+            } else if (hash === '#notifications') {
+                this.renderNotificationsPage();
+                this.ui.pages.notifications.classList.add('active');
+            }
+            else {
+                if (this.isAdmin()) {
+                    this.renderMyForms();
+                    this.ui.pages.myForms.classList.add('active');
+                } else {
+                    // Default page for regular users can be notifications
+                    window.location.hash = '#notifications';
+                }
+            }
+        },
+
+        isAdmin() {
+            return this.state.currentUser?.toLowerCase() === 'horiifn';
+        },
+        
+        updateUIForRole() {
+            if (this.isAdmin()) {
+                this.ui.buttons.myFormsNav.classList.remove('hidden');
+                this.ui.buttons.createFormNav.classList.remove('hidden');
+            } else {
+                this.ui.buttons.myFormsNav.classList.add('hidden');
+                this.ui.buttons.createFormNav.classList.add('hidden');
+            }
+            this.updateNotificationBadge();
+        },
+        
+        updateNotificationBadge() {
+            const unreadCount = this.state.notifications.filter(n => n.userId === this.state.currentUser && !n.isRead).length;
+            if (unreadCount > 0) {
+                this.ui.notificationBadge.textContent = unreadCount;
+                this.ui.notificationBadge.classList.remove('hidden');
+            } else {
+                this.ui.notificationBadge.classList.add('hidden');
+            }
+        },
+
+        // --- RENDER FUNCTIONS ---
+        renderMyForms() {
+            const list = this.ui.containers.formsList;
+            list.innerHTML = '';
+            if (this.state.forms.length === 0) {
+                list.innerHTML = '<p style="text-align:center;">Вы еще не создали ни одной формы. Нажмите "Создать форму", чтобы начать!</p>';
+                return;
+            }
+            this.state.forms.forEach(form => {
+                const responseCount = this.state.responses.filter(r => r.formId === form.id).length;
+                const item = document.createElement('div');
+                item.className = 'form-list-item';
+                item.innerHTML = `
+                    <div class="info">
+                        <h4>${form.title}</h4>
+                        <span>Ответов: ${responseCount}</span>
+                    </div>
+                    <div class="controls">
+                        <button class="btn btn-small view-responses-btn" data-id="${form.id}">Ответы</button>
+                        <button class="btn btn-small get-link-btn" data-id="${form.id}">Ссылка</button>
+                        <button class="btn btn-small edit-form-btn" data-id="${form.id}">⚙️</button>
+                        <button class="btn btn-small btn-danger delete-form-btn" data-id="${form.id}">🗑️</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        },
+
+        renderResponsesViewer(formId) {
+            const form = this.state.forms.find(f => f.id === formId);
+            const responses = this.state.responses.filter(r => r.formId === formId);
+            document.getElementById('responses-form-title').textContent = `Ответы на "${form ? form.title : ''}"`;
+            const list = this.ui.containers.responsesList;
+            list.innerHTML = '';
+
+            if (responses.length === 0) {
+                list.innerHTML = '<p style="text-align:center;">На эту форму еще нет ответов.</p>';
+                return;
+            }
+
+            responses.forEach(res => {
+                const card = document.createElement('div');
+                card.className = 'response-card';
+                let cardHtml = `
+                    <div class="response-card-header">
+                        <span>Ответ от: <strong>${res.submittedBy}</strong> (${new Date(res.timestamp).toLocaleString()})</span>
+                        <span class="response-status-badge status-${res.status}">${res.status.toUpperCase()}</span>
+                    </div>`;
+                
+                res.answers.forEach(answer => {
+                    const question = form.questions.find(q => q.id === answer.questionId);
+                    if (question) {
+                        cardHtml += `<div class="response-answer"><strong>${question.label}</strong><span>${answer.answer}</span></div>`;
+                    }
+                });
+
+                if (this.isAdmin() && res.status === 'pending') {
+                    cardHtml += `
+                        <div class="response-controls">
+                            <button class="btn btn-small btn-success approve-btn" data-id="${res.responseId}">Одобрить</button>
+                            <button class="btn btn-small btn-danger deny-btn" data-id="${res.responseId}">Отклонить</button>
+                        </div>
+                    `;
+                }
+                card.innerHTML = cardHtml;
+                list.appendChild(card);
+            });
+        },
+
+        renderNotificationsPage() {
+            const list = this.ui.containers.notificationsList;
+            list.innerHTML = '';
+            const userNotifications = this.state.notifications
+                .filter(n => n.userId === this.state.currentUser)
+                .sort((a, b) => b.timestamp - a.timestamp);
+
+            if (userNotifications.length === 0) {
+                list.innerHTML = '<p style="text-align:center;">У вас пока нет уведомлений.</p>';
+                return;
+            }
+
+            userNotifications.forEach(n => {
+                const item = document.createElement('div');
+                item.className = `notification-item ${n.status} ${n.isRead ? 'is-read' : ''}`;
+                item.innerHTML = `<p>${n.message}</p><div class="timestamp">${new Date(n.timestamp).toLocaleString()}</div>`;
+                list.appendChild(item);
+                n.isRead = true; // Mark as read on view
+            });
+            this.saveData();
+            this.updateNotificationBadge();
+        },
+
+        renderFormViewer(formId) { /* Unchanged from previous version */
+            const form = this.state.forms.find(f => f.id === formId);
+            const container = this.ui.containers.formDisplay;
+            container.innerHTML = '';
+            document.getElementById('form-thank-you-message').classList.add('hidden');
+            
+            if (!form) {
+                container.innerHTML = '<h2 class="page-title">Форма не найдена</h2><p>Возможно, ссылка устарела или была введена с ошибкой.</p>';
+                return;
+            }
+
+            let formHtml = `<form id="active-form" data-id="${form.id}"><div class="form-section"><h2>${form.title}</h2><p>${form.description}</p></div>`;
+            form.questions.forEach(q => {
+                formHtml += `<div class="form-section form-question"><label for="q-${q.id}">${q.label}</label>`;
+                switch (q.type) {
+                    case 'short-text': formHtml += `<input type="text" id="q-${q.id}" name="${q.id}" class="form-control" required>`; break;
+                    case 'paragraph': formHtml += `<textarea id="q-${q.id}" name="${q.id}" class="form-control" required></textarea>`; break;
+                    case 'multiple-choice':
+                        formHtml += '<div class="options-group">';
+                        q.options.forEach((opt, index) => {
+                            formHtml += `<div class="option-item"><input type="radio" id="q-${q.id}-${index}" name="${q.id}" value="${opt}" required><label for="q-${q.id}-${index}">${opt}</label></div>`;
+                        });
+                        formHtml += '</div>';
+                        break;
+                }
+                formHtml += '</div>';
+            });
+            formHtml += `<div style="text-align:center;"><button type="submit" class="btn btn-primary">Отправить</button></div></form>`;
+            container.innerHTML = formHtml;
+        },
+        renderFormEditor(formId) { /* Unchanged from previous version */
+            this.ui.containers.questions.innerHTML = '';
+            if (formId) {
+                const form = this.state.forms.find(f => f.id === formId);
+                if (form) {
+                    document.getElementById('editor-title').textContent = "Редактирование формы";
+                    this.ui.inputs.editingFormId.value = form.id;
+                    this.ui.inputs.formTitle.value = form.title;
+                    this.ui.inputs.formDescription.value = form.description;
+                    form.questions.forEach(q => this.addQuestionToDOM(q.type, q));
+                }
+            } else {
+                document.getElementById('editor-title').textContent = "Создание формы";
+                this.ui.inputs.editingFormId.value = '';
+                this.ui.inputs.formTitle.value = '';
+                this.ui.inputs.formDescription.value = '';
+            }
+        },
+        addQuestionToDOM(type, data = {}) { /* Unchanged from previous version */
+            const questionId = data.id || `q_${Date.now()}`;
+            const card = document.createElement('div');
+            card.className = 'question-editor-card';
+            card.dataset.id = questionId;
+            card.dataset.type = type;
+            let optionsHtml = '';
+            if (type === 'multiple-choice') {
+                const options = data.options || ['Вариант 1'];
+                optionsHtml = '<div class="question-options-container">';
+                options.forEach(opt => { optionsHtml += `<div class="question-option"><input type="text" class="form-control option-input" value="${opt}"><button type="button" class="btn btn-small btn-danger remove-option-btn">X</button></div>`; });
+                optionsHtml += '</div><button type="button" class="btn btn-small add-option-btn" style="margin-top:10px;">Добавить вариант</button>';
+            }
+            card.innerHTML = `<div class="question-editor-header"><strong>${type === 'short-text' ? 'Короткий ответ' : type === 'paragraph' ? 'Абзац' : 'Один из списка'}</strong><button class="btn btn-small btn-danger remove-question-btn">Удалить вопрос</button></div><div class="form-group"><label>Текст вопроса</label><input type="text" class="form-control question-label-input" placeholder="Введите ваш вопрос" value="${data.label || ''}"></div>${optionsHtml}`;
+            this.ui.containers.questions.appendChild(card);
+        },
+
+        // --- ACTIONS ---
+        handleLogin(e) {
+            e.preventDefault();
+            this.ui.loginErrorMsg.textContent = '';
+            const nickname = this.ui.loginNickname.value.trim();
+            const password = this.ui.loginPassword.value;
+            
+            if (!nickname) {
+                this.ui.loginErrorMsg.textContent = 'Введите ваш ник!';
+                return;
+            }
+
+            if (nickname.toLowerCase() === 'horiifn') {
+                if (password === 'hori6666FNFN') {
+                    this.state.currentUser = nickname;
+                } else {
+                    this.ui.loginErrorMsg.textContent = 'Неверный пароль!';
+                    return;
+                }
+            } else {
+                this.state.currentUser = nickname;
+            }
+            localStorage.setItem('formsCloneCurrentUser', this.state.currentUser);
+            this.startApp();
+        },
+
+        handleLogout() {
+            if (confirm('Вы уверены, что хотите выйти?')) {
+                localStorage.removeItem('formsCloneCurrentUser');
+                window.location.reload();
+            }
+        },
+
+        createNotification(userId, message, status) {
+            this.state.notifications.push({
+                id: `n_${Date.now()}`,
+                userId: userId,
+                message: message,
+                status: status, // 'approved' or 'denied'
+                isRead: false,
+                timestamp: Date.now(),
+            });
+        },
+
+        submitForm(formElement) {
+            const formId = formElement.dataset.id;
+            const formData = new FormData(formElement);
+            const response = {
+                responseId: `r_${Date.now()}`,
+                formId: formId,
+                submittedBy: this.state.currentUser,
+                status: 'pending', // NEW
+                timestamp: Date.now(),
+                answers: [],
+            };
+            for (let [key, value] of formData.entries()) {
+                response.answers.push({ questionId: key, answer: value });
+            }
+            this.state.responses.push(response);
+            this.saveData();
+            
+            formElement.classList.add('hidden');
+            document.getElementById('form-thank-you-message').classList.remove('hidden');
+        },
+
+        saveForm() { /* Mostly unchanged */
+            const id = this.ui.inputs.editingFormId.value || `f_${Date.now()}`;
+            const title = this.ui.inputs.formTitle.value.trim();
+            if (!title) { alert('Пожалуйста, введите название формы.'); return; }
+            const newForm = { id: id, title: title, description: this.ui.inputs.formDescription.value.trim(), questions: [] };
+            document.querySelectorAll('.question-editor-card').forEach(card => {
+                const question = { id: card.dataset.id, type: card.dataset.type, label: card.querySelector('.question-label-input').value.trim() };
+                if (question.type === 'multiple-choice') {
+                    question.options = [];
+                    card.querySelectorAll('.option-input').forEach(optInput => { question.options.push(optInput.value.trim()); });
+                }
+                newForm.questions.push(question);
+            });
+            const existingIndex = this.state.forms.findIndex(f => f.id === id);
+            if (existingIndex > -1) { this.state.forms[existingIndex] = newForm; } else { this.state.forms.push(newForm); }
+            this.saveData();
+            alert('Форма сохранена!');
+            window.location.hash = '';
+        },
+        
+        attachEventListeners() {
+            // Login/Logout
+            this.ui.loginForm.addEventListener('submit', (e) => this.handleLogin(e));
+            this.ui.loginNickname.addEventListener('input', (e) => {
+                this.ui.passwordGroup.classList.toggle('hidden', e.target.value.toLowerCase() !== 'horiifn');
+            });
+            this.ui.buttons.logout.addEventListener('click', () => this.handleLogout());
+
+            // Navigation
+            this.ui.buttons.logo.addEventListener('click', () => window.location.hash = '');
+            this.ui.buttons.myFormsNav.addEventListener('click', () => window.location.hash = '');
+            this.ui.buttons.createFormNav.addEventListener('click', () => window.location.hash = '#create');
+            this.ui.buttons.notificationsNav.addEventListener('click', () => window.location.hash = '#notifications');
+            
+            // Form Editor (unchanged)
+            this.ui.buttons.addQuestion.addEventListener('click', () => { this.addQuestionToDOM(this.ui.inputs.questionType.value); });
+            this.ui.buttons.saveForm.addEventListener('click', () => this.saveForm());
+            this.ui.containers.questions.addEventListener('click', (e) => {
+                if (e.target.classList.contains('remove-question-btn')) e.target.closest('.question-editor-card').remove();
+                if (e.target.classList.contains('add-option-btn')) {
+                    const optionContainer = e.target.previousElementSibling; const newOption = document.createElement('div');
+                    newOption.className = 'question-option'; newOption.innerHTML = `<input type="text" class="form-control option-input" value="Новый вариант"><button type="button" class="btn btn-small btn-danger remove-option-btn">X</button>`;
+                    optionContainer.appendChild(newOption);
+                }
+                if (e.target.classList.contains('remove-option-btn')) e.target.closest('.question-option').remove();
+            });
+
+            // My Forms Page
+            this.ui.containers.formsList.addEventListener('click', e => {
+                const target = e.target;
+                const formId = target.dataset.id;
+                if (!formId) return;
+
+                if (target.classList.contains('delete-form-btn')) {
+                    if (confirm('Вы уверены, что хотите удалить эту форму и все ответы на нее? Это действие необратимо.')) {
+                        this.state.forms = this.state.forms.filter(f => f.id !== formId);
+                        this.state.responses = this.state.responses.filter(r => r.formId !== formId);
+                        this.saveData(); this.renderMyForms();
+                    }
+                } else if (target.classList.contains('edit-form-btn')) window.location.hash = `#edit=${formId}`;
+                else if (target.classList.contains('get-link-btn')) {
+                    const url = `${window.location.origin}${window.location.pathname}#view=${formId}`;
+                    this.ui.inputs.shareLink.value = url; this.ui.modals.share.classList.remove('hidden');
+                } else if (target.classList.contains('view-responses-btn')) window.location.hash = `#responses=${formId}`;
+            });
+            
+            // Form Viewer
+            this.ui.pages.formViewer.addEventListener('submit', e => {
+                if (e.target.id === 'active-form') { e.preventDefault(); this.submitForm(e.target); }
+            });
+
+            // Responses Viewer (Approve/Deny)
+            this.ui.containers.responsesList.addEventListener('click', e => {
+                const target = e.target;
+                const responseId = target.dataset.id;
+                if (!responseId) return;
+                
+                const response = this.state.responses.find(r => r.responseId === responseId);
+                const form = this.state.forms.find(f => f.id === response.formId);
+                if (!response || !form) return;
+
+                let newStatus = null;
+                if (target.classList.contains('approve-btn')) newStatus = 'approved';
+                if (target.classList.contains('deny-btn')) newStatus = 'denied';
+
+                if (newStatus) {
+                    response.status = newStatus;
+                    const message = `Ваша заявка на форму "${form.title}" была ${newStatus === 'approved' ? 'одобрена' : 'отклонена'}.`;
+                    this.createNotification(response.submittedBy, message, newStatus);
+                    this.saveData();
+                    this.renderResponsesViewer(form.id); // Re-render the list
+                }
+            });
+
+            // Modals
+            this.ui.modals.share.querySelector('.close-modal').addEventListener('click', () => this.ui.modals.share.classList.add('hidden'));
+            this.ui.buttons.copyLink.addEventListener('click', () => {
+                this.ui.inputs.shareLink.select(); document.execCommand('copy');
+                this.ui.buttons.copyLink.textContent = 'Скопировано!';
+                setTimeout(() => { this.ui.buttons.copyLink.textContent = 'Копировать'; }, 2000);
+            });
+        }
+    };
+
+    app.init();
+});
+</script>
+</body>
+</html>
